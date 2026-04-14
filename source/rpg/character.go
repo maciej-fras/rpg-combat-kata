@@ -1,6 +1,8 @@
 package rpg
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	MaxHealth                       = 1000
@@ -8,13 +10,15 @@ const (
 )
 
 type Character struct {
-	health float64
-	Level  int
-	Alive  bool
+	health   float64
+	Level    int
+	Alive    bool
+	Type     FighterType
+	Position Position
 }
 
 func NewCharacter() Character {
-	return Character{health: MaxHealth, Level: 1, Alive: true}
+	return Character{health: MaxHealth, Level: 1, Alive: true, Type: Melee, Position: Position{X: 0}}
 }
 
 func (c *Character) Health() float64 {
@@ -50,6 +54,15 @@ func (c *Character) DealDamage(target *Character, damage float64) {
 	if c == target {
 		return
 	}
+	distance := c.Position.X - target.Position.X
+	if distance < 0 {
+		distance = -distance
+	}
+
+	if distance > int(c.Type.MaxRange()) {
+		return
+	}
+
 	levelDiff := c.Level - target.Level
 	if levelDiff >= MinLevelDiffToModifyDamageDealt {
 		damage = damage * 1.5
