@@ -15,10 +15,18 @@ type Character struct {
 	Alive    bool
 	Type     FighterType
 	Position Position
+	Factions map[*Faction]bool
 }
 
 func NewCharacter() Character {
-	return Character{health: MaxHealth, Level: 1, Alive: true, Type: Melee, Position: Position{X: 0}}
+	return Character{
+		health:   MaxHealth,
+		Level:    1,
+		Alive:    true,
+		Type:     Melee,
+		Position: Position{X: 0},
+		Factions: make(map[*Faction]bool),
+	}
 }
 
 func (c *Character) Health() float64 {
@@ -38,8 +46,8 @@ func (c *Character) SetHealth(value float64) {
 }
 
 func (c *Character) Heal(target *Character, healValue float64) string {
-	if c != target {
-		return "Character cannot heal different character"
+	if c != target && !c.IsAlly(target) {
+		return "Character cannot heal character from different faction"
 	}
 	if !target.Alive {
 		return "Dead character cannot be healed"
@@ -54,6 +62,11 @@ func (c *Character) DealDamage(target *Character, damage float64) {
 	if c == target {
 		return
 	}
+
+	if c.IsAlly(target) {
+		return
+	}
+
 	distance := c.Position.X - target.Position.X
 	if distance < 0 {
 		distance = -distance
@@ -76,4 +89,21 @@ func (c *Character) DealDamage(target *Character, damage float64) {
 func (c *Character) TakeDamage(damage float64) {
 	decreasedHealth := c.health - damage
 	c.SetHealth(decreasedHealth)
+}
+
+func (c *Character) JoinFaction(faction *Faction) {
+	c.Factions[faction] = true
+}
+
+func (c *Character) LeaveFaction(faction *Faction) {
+	delete(c.Factions, faction)
+}
+
+func (c *Character) IsAlly(otherCharacter *Character) bool {
+	for faction := range c.Factions {
+		if otherCharacter.Factions[faction] {
+			return true
+		}
+	}
+	return false
 }
