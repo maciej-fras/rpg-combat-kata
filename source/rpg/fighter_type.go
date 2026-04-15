@@ -3,8 +3,8 @@ package rpg
 type FighterType int
 
 const (
-	Melee  FighterType = iota // 0
-	Ranged                    // 1
+	Melee FighterType = iota
+	Ranged
 )
 
 func (ft FighterType) MaxRange() float64 {

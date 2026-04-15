@@ -10,9 +10,8 @@ const (
 )
 
 type Character struct {
-	health   float64
+	Health
 	Level    int
-	Alive    bool
 	Type     FighterType
 	Position Position
 	Factions map[*Faction]bool
@@ -20,28 +19,11 @@ type Character struct {
 
 func NewCharacter() Character {
 	return Character{
-		health:   MaxHealth,
+		Health:   NewHealth(MaxHealth),
 		Level:    1,
-		Alive:    true,
 		Type:     Melee,
 		Position: Position{X: 0},
 		Factions: make(map[*Faction]bool),
-	}
-}
-
-func (c *Character) Health() float64 {
-	return c.health
-}
-
-// Setter with constraints
-func (c *Character) SetHealth(value float64) {
-	if value <= 0 {
-		c.health = 0
-		c.Alive = false
-	} else if value > MaxHealth {
-		c.health = MaxHealth
-	} else {
-		c.health = value
 	}
 }
 
@@ -49,46 +31,53 @@ func (c *Character) Heal(target *Character, healValue float64) string {
 	if c != target && !c.IsAlly(target) {
 		return "Character cannot heal character from different faction"
 	}
-	if !target.Alive {
+	if !target.IsAlive() {
 		return "Dead character cannot be healed"
 	}
 
-	increasedHealth := target.health + healValue
+	increasedHealth := target.GetHealth() + healValue
 	target.SetHealth(increasedHealth)
-	return fmt.Sprintf("Character healed by %f up to %f", healValue, target.Health())
+	return fmt.Sprintf("Character healed by %f up to %f", healValue, target.GetHealth())
 }
 
-func (c *Character) DealDamage(target *Character, damage float64) {
-	if c == target {
+func (c *Character) DealDamage(target Damagable, damage float64) {
+	damage = c.adjustDamageForTarget(target, damage)
+	if damage == 0 {
 		return
 	}
+	target.TakeDamage(damage)
+}
 
-	if c.IsAlly(target) {
-		return
+func (c *Character) adjustDamageForTarget(target Damagable, damage float64) float64 {
+	targetChar, ok := target.(*Character)
+	if !ok { // non-character
+		return damage
+	}
+	if c == targetChar {
+		return 0
+	}
+	if c.IsAlly(targetChar) {
+		return 0
+	}
+	if !c.isInRange(targetChar) {
+		return 0
 	}
 
+	levelDiff := c.Level - targetChar.Level
+	if levelDiff >= MinLevelDiffToModifyDamageDealt {
+		damage *= 1.5
+	} else if levelDiff <= -MinLevelDiffToModifyDamageDealt {
+		damage *= 0.5
+	}
+	return damage
+}
+
+func (c *Character) isInRange(target *Character) bool {
 	distance := c.Position.X - target.Position.X
 	if distance < 0 {
 		distance = -distance
 	}
-
-	if distance > int(c.Type.MaxRange()) {
-		return
-	}
-
-	levelDiff := c.Level - target.Level
-	if levelDiff >= MinLevelDiffToModifyDamageDealt {
-		damage = damage * 1.5
-	} else if levelDiff <= -MinLevelDiffToModifyDamageDealt {
-		damage = damage * 0.5
-	}
-
-	target.TakeDamage(damage)
-}
-
-func (c *Character) TakeDamage(damage float64) {
-	decreasedHealth := c.health - damage
-	c.SetHealth(decreasedHealth)
+	return distance <= int(c.Type.MaxRange())
 }
 
 func (c *Character) JoinFaction(faction *Faction) {
